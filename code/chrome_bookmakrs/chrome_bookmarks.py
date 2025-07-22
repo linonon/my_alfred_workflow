@@ -27,9 +27,15 @@ def get_chrome_bookmarks_path(profile: str = "Default") -> Path:
     system = platform.system()
 
     if system == "Darwin":  # macOS
-        path = Path.home() / f"Library/Application Support/Google/Chrome/{profile}/Bookmarks"
+        path = (
+            Path.home()
+            / f"Library/Application Support/Google/Chrome/{profile}/Bookmarks"
+        )
     elif system == "Windows":
-        path = Path(os.environ["LOCALAPPDATA"]) / f"Google/Chrome/User Data/{profile}/Bookmarks"
+        path = (
+            Path(os.environ["LOCALAPPDATA"])
+            / f"Google/Chrome/User Data/{profile}/Bookmarks"
+        )
     elif system == "Linux":
         path = Path.home() / f".config/google-chrome/{profile}/Bookmarks"
     else:
@@ -60,7 +66,9 @@ def list_chrome_profiles() -> List[str]:
     return sorted(profiles)
 
 
-def extract_bookmarks(bookmark_node: Dict[str, Any], bm: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, Any]]:
+def extract_bookmarks(
+    bookmark_node: Dict[str, Any], bm: Optional[List[Dict[str, Any]]] = None
+) -> List[Dict[str, Any]]:
     """Recursively extract bookmarks from the bookmark tree."""
     if bm is None:
         bm = []
@@ -114,7 +122,9 @@ def get_chrome_bookmarks(profile: str = "Default") -> List[Dict[str, Any]]:
         raise RuntimeError(f"Error reading bookmarks: {e}") from e
 
 
-def search_bookmarks(bookmarks: List[Dict[str, Any]], query: str) -> List[Dict[str, Any]]:
+def search_bookmarks(
+    bookmarks: List[Dict[str, Any]], query: str
+) -> List[Dict[str, Any]]:
     """Search bookmarks and return scored results."""
     if not query:
         return bookmarks[:10]  # Return first 10 if no query
@@ -244,7 +254,11 @@ def main():
         output_alfred_format(bookmarks, query)
 
     except Exception as e:
-        output = {"items": [{"title": "Error loading bookmarks", "subtitle": str(e), "valid": False}]}
+        output = {
+            "items": [
+                {"title": "Error loading bookmarks", "subtitle": str(e), "valid": False}
+            ]
+        }
         print(json.dumps(output, ensure_ascii=False, indent=2))
 
 

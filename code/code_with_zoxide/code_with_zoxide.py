@@ -18,7 +18,9 @@ EXCLUDE_FOLDERS_PREFIX = [
 ]
 
 
-def calculate_matching_scores(zoxide_result: str, paths: list[str], query: str) -> dict[str, int]:
+def calculate_matching_scores(
+    zoxide_result: str, paths: list[str], query: str
+) -> dict[str, int]:
     """Main entry point of the script.
 
     key: path, value: score
@@ -59,7 +61,9 @@ def get_zoxide_result(input: str) -> str:
 def get_zoxide_paths() -> list[str]:
     try:
         paths = []
-        zoxide_query_list = subprocess.check_output(["zoxide", "query", "--list"], text=True).splitlines()
+        zoxide_query_list = subprocess.check_output(
+            ["zoxide", "query", "--list"], text=True
+        ).splitlines()
         for item in zoxide_query_list:
             if any(item.startswith(prefix) for prefix in EXCLUDE_FOLDERS_PREFIX):
                 continue
