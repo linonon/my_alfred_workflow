@@ -5,6 +5,20 @@ import sys
 from collections import defaultdict
 from difflib import SequenceMatcher
 
+try:
+    # Add project root to path
+    from pathlib import Path
+
+    project_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(project_root))
+
+    from models.alfred import AlfredScriptFilter, AlfredItem, AlfredMod
+
+except ImportError:
+    sys.exit(
+        "Error: Could not import Alfred models. Ensure the project structure is correct."
+    )
+
 HOME = os.path.expanduser("~")
 PART_MATCH_SCORE = 100
 FULL_MATCH_SCORE = 1000
@@ -82,61 +96,41 @@ def main():
 
     # 检查是否有结果
     if not paths:
-        # 输出一个自定义的 Alfred 项目，提示无匹配结果
-        no_results = {
-            "items": [
-                {
-                    "title": "No results found",
-                    "subtitle": "Try a different search term",
-                    "valid": False,
-                }
-            ]
-        }
-        print(json.dumps(no_results, indent=2))
+        script_filter = AlfredScriptFilter()
+        script_filter.add_simple_item(
+            title="No results found", subtitle="Try a different search term"
+        ).valid = False
+        print(script_filter.to_json())
         sys.exit(0)
 
     # 使用自定义算法找出最佳匹配项
     matches = calculate_matching_scores(zoxide_result, paths, input_query)
 
     # 构建 Alfred 所需的 JSON 格式
-    items = []
+    script_filter = AlfredScriptFilter()
+
     for i, match in enumerate(matches):
         if i > 10:
             break
-        items.append(
-            {
-                "title": match,
-                "subtitle": "Open with VSCode",
-                "arg": match,
-                "mods": {
-                    "cmd": {
-                        "valid": True,
-                        "arg": match,
-                        "subtitle": "Copy path to clipboard",
-                    },
-                    "alt": {
-                        "valid": True,
-                        "arg": match,
-                        "subtitle": "Reveal in Finder",
-                    },
-                },
-            }
+
+        mods = {
+            "cmd": AlfredMod(valid=True, arg=match, subtitle="Copy path to clipboard"),
+            "alt": AlfredMod(valid=True, arg=match, subtitle="Reveal in Finder"),
+        }
+
+        item = AlfredItem(
+            title=match, subtitle="Open with VSCode", arg=match, mods=mods
         )
+        script_filter.add_item(item)
 
     # 如果没有匹配项，提供一个默认提示
-    if not items:
-        items.append(
-            {
-                "title": "No results found",
-                "subtitle": "Try a different search term",
-                "valid": False,
-            }
-        )
-
-    output = {"items": items}
+    if not script_filter.items:
+        script_filter.add_simple_item(
+            title="No results found", subtitle="Try a different search term"
+        ).valid = False
 
     # 输出 JSON 供 Alfred 使用
-    print(json.dumps(output, indent=2))
+    print(script_filter.to_json())
 
 
 if __name__ == "__main__":

@@ -9,13 +9,16 @@ from typing import Any, Dict, List, Optional
 try:
     # Add project root to path
     from pathlib import Path
+
     project_root = Path(__file__).parent.parent.parent
     sys.path.insert(0, str(project_root))
 
     from models.alfred import AlfredScriptFilter, AlfredItem, AlfredMod
 
 except ImportError:
-    sys.exit("Error: Could not import Alfred models. Ensure the project structure is correct.")
+    sys.exit(
+        "Error: Could not import Alfred models. Ensure the project structure is correct."
+    )
 
 
 try:
@@ -198,34 +201,31 @@ def output_alfred_format(bookmarks: List[Dict[str, Any]], query: str = ""):
     filtered_bookmarks = search_bookmarks(bookmarks, query)
 
     script_filter = AlfredScriptFilter()
-    
+
     for bookmark in filtered_bookmarks:
         mods = {
             "cmd": AlfredMod(
-                valid=True,
-                arg=bookmark["url"],
-                subtitle="Copy URL to clipboard"
+                valid=True, arg=bookmark["url"], subtitle="Copy URL to clipboard"
             ),
             "alt": AlfredMod(
                 valid=True,
                 arg=bookmark["name"],
-                subtitle="Copy bookmark name to clipboard"
+                subtitle="Copy bookmark name to clipboard",
             ),
         }
-        
+
         item = AlfredItem(
             title=bookmark["name"],
             subtitle=bookmark["url"],
             arg=bookmark["url"],
-            mods=mods
+            mods=mods,
         )
         script_filter.add_item(item)
 
     # If no results found
     if not script_filter.items:
         script_filter.add_simple_item(
-            title="No bookmarks found",
-            subtitle="Try a different search term"
+            title="No bookmarks found", subtitle="Try a different search term"
         ).valid = False
 
     print(script_filter.to_json())
@@ -245,7 +245,7 @@ def main():
             script_filter = AlfredScriptFilter()
             script_filter.add_simple_item(
                 title="No Chrome profiles found",
-                subtitle="Chrome bookmarks not accessible"
+                subtitle="Chrome bookmarks not accessible",
             ).valid = False
             print(script_filter.to_json())
             return
@@ -260,8 +260,7 @@ def main():
     except Exception as e:
         script_filter = AlfredScriptFilter()
         script_filter.add_simple_item(
-            title="Error loading bookmarks", 
-            subtitle=str(e)
+            title="Error loading bookmarks", subtitle=str(e)
         ).valid = False
         print(script_filter.to_json())
 
