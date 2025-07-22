@@ -3,8 +3,20 @@ import os
 import platform
 import sys
 from difflib import SequenceMatcher
-from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+
+try:
+    # Add project root to path
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent.parent
+    sys.path.insert(0, str(project_root))
+
+    from models.alfred import AlfredScriptFilter, AlfredItem, AlfredMod
+
+except ImportError:
+    sys.exit("Error: Could not import Alfred models. Ensure the project structure is correct.")
+
 
 try:
     from pypinyin import lazy_pinyin
@@ -185,40 +197,38 @@ def output_alfred_format(bookmarks: List[Dict[str, Any]], query: str = ""):
     # Search and score bookmarks
     filtered_bookmarks = search_bookmarks(bookmarks, query)
 
-    items = []
+    script_filter = AlfredScriptFilter()
+    
     for bookmark in filtered_bookmarks:
-        items.append(
-            {
-                "title": bookmark["name"],
-                "subtitle": bookmark["url"],
-                "arg": bookmark["url"],
-                "mods": {
-                    "cmd": {
-                        "valid": True,
-                        "arg": bookmark["url"],
-                        "subtitle": "Copy URL to clipboard",
-                    },
-                    "alt": {
-                        "valid": True,
-                        "arg": bookmark["name"],
-                        "subtitle": "Copy bookmark name to clipboard",
-                    },
-                },
-            }
+        mods = {
+            "cmd": AlfredMod(
+                valid=True,
+                arg=bookmark["url"],
+                subtitle="Copy URL to clipboard"
+            ),
+            "alt": AlfredMod(
+                valid=True,
+                arg=bookmark["name"],
+                subtitle="Copy bookmark name to clipboard"
+            ),
+        }
+        
+        item = AlfredItem(
+            title=bookmark["name"],
+            subtitle=bookmark["url"],
+            arg=bookmark["url"],
+            mods=mods
         )
+        script_filter.add_item(item)
 
     # If no results found
-    if not items:
-        items.append(
-            {
-                "title": "No bookmarks found",
-                "subtitle": "Try a different search term",
-                "valid": False,
-            }
-        )
+    if not script_filter.items:
+        script_filter.add_simple_item(
+            title="No bookmarks found",
+            subtitle="Try a different search term"
+        ).valid = False
 
-    output = {"items": items}
-    print(json.dumps(output, ensure_ascii=False, indent=2))
+    print(script_filter.to_json())
 
 
 def main():
@@ -232,16 +242,12 @@ def main():
         # Check if profile exists, fallback to first available
         profiles = list_chrome_profiles()
         if not profiles:
-            output = {
-                "items": [
-                    {
-                        "title": "No Chrome profiles found",
-                        "subtitle": "Chrome bookmarks not accessible",
-                        "valid": False,
-                    }
-                ]
-            }
-            print(json.dumps(output, ensure_ascii=False, indent=2))
+            script_filter = AlfredScriptFilter()
+            script_filter.add_simple_item(
+                title="No Chrome profiles found",
+                subtitle="Chrome bookmarks not accessible"
+            ).valid = False
+            print(script_filter.to_json())
             return
 
         if profile not in profiles:
@@ -252,12 +258,12 @@ def main():
         output_alfred_format(bookmarks, query)
 
     except Exception as e:
-        output = {
-            "items": [
-                {"title": "Error loading bookmarks", "subtitle": str(e), "valid": False}
-            ]
-        }
-        print(json.dumps(output, ensure_ascii=False, indent=2))
+        script_filter = AlfredScriptFilter()
+        script_filter.add_simple_item(
+            title="Error loading bookmarks", 
+            subtitle=str(e)
+        ).valid = False
+        print(script_filter.to_json())
 
 
 if __name__ == "__main__":
