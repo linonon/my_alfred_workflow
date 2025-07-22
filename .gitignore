@@ -1,11 +1,42 @@
+# IDE 和编辑器
 .vscode/
 .history/
 .idea/
 *.sublime-workspace
 *.sublime-project
 *.code-workspace
+
+# 临时文件
 *.tmp
 *.log
 *.bak
 *.swp
-*.DS_Store
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+.env
+.venv/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# PyInstaller 构建文件
+build/
+dist/
+*.spec.bak
+
+# 包信息
+*.egg-info/
+*.egg
+.eggs/
+
+# 项目特定
+alfred-cli
+uv.lock

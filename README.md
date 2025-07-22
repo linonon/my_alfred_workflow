@@ -7,3 +7,7 @@
 ## Window switcher
 
 [window-switcher](https://alfred.app/workflows/alfredapp/window-switcher/)
+
+## build cli
+
+`python scripts/build.py`
