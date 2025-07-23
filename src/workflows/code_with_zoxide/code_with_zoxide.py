@@ -18,7 +18,9 @@ except ImportError:
         "Error: Could not import Alfred models. Ensure the project structure is correct."
     )
 
-HOME = os.path.expanduser("~")
+HOME = os.path.expanduser("~")+ "/"
+WORKSPACE = os.path.join(HOME, "Workspace/")
+COMPANY = os.path.join(WORKSPACE, "company/")
 PART_MATCH_SCORE = 100
 FULL_MATCH_SCORE = 1000
 ZOXIDE_RESULT_SCORE = 10000
@@ -27,6 +29,7 @@ MATCH_PATH_DEPTH = 5
 EXCLUDE_FOLDERS_PREFIX = [
     "/Applications",
 ]
+
 
 
 def calculate_matching_scores(
@@ -84,6 +87,17 @@ def get_zoxide_paths() -> list[str]:
 
     return paths
 
+def replace_str_in_match(match: str)-> str:
+    """Replace HOME in match with ~."""
+
+    if match.startswith(COMPANY) and match != COMPANY:
+        return match.replace(COMPANY, "[company] ", 1)
+    if match.startswith(WORKSPACE) and match != WORKSPACE:
+        return match.replace(WORKSPACE, "[workspace] ", 1)
+    if match.startswith(HOME) and match != HOME:
+        return match.replace(HOME, "[home] ", 1)
+    return match
+
 
 def main():
     # 获取传入的搜索关键词
@@ -112,13 +126,16 @@ def main():
         if i > 10:
             break
 
+        replace_match = replace_str_in_match(match)
+
         mods = {
             "cmd": AlfredMod(valid=True, arg=match, subtitle="Copy path to clipboard"),
             "alt": AlfredMod(valid=True, arg=match, subtitle="Reveal in Finder"),
         }
 
+
         item = AlfredItem(
-            title=match, subtitle="Open with VSCode", arg=match, mods=mods
+            title=replace_match, subtitle="Open with VSCode", arg=match, mods=mods
         )
         script_filter.add_item(item)
 
