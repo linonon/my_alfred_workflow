@@ -59,7 +59,41 @@ def calculate_matching_scores(
     if zoxide_result:
         result[zoxide_result] += ZOXIDE_RESULT_SCORE
 
+    # 先按分數排序
     result = dict(sorted(result.items(), key=lambda item: item[1], reverse=True))
+    
+    # 特殊處理：只讓以 /src 結尾的路徑排在其父目錄前面
+    sorted_paths = list(result.keys())
+    final_order = []
+    processed = set()
+    
+    for path in sorted_paths:
+        if path in processed:
+            continue
+            
+        # 找到與當前路徑有父子關係的所有路徑
+        related_paths = [path]
+        processed.add(path)
+        
+        # 查找所有子路徑
+        for other_path in sorted_paths:
+            if other_path != path and other_path not in processed:
+                if other_path.startswith(path + "/"):
+                    related_paths.append(other_path)
+                    processed.add(other_path)
+        
+        # 特殊排序：只有以 /src 結尾的路徑排在父路徑前面
+        def src_priority_sort_key(p):
+            if p.endswith("/src"):
+                return (0, -result[p])  # src 路徑優先，然後按分數排序
+            else:
+                return (1, -result[p])  # 其他路徑按分數排序
+        
+        related_paths.sort(key=src_priority_sort_key)
+        final_order.extend(related_paths)
+    
+    # 重新構建結果字典
+    result = {path: result[path] for path in final_order}
     return result
 
 
