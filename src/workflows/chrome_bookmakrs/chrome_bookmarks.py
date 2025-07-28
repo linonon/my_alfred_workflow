@@ -1,6 +1,5 @@
 import json
 import os
-import platform
 import sys
 from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional, Tuple
@@ -67,55 +66,32 @@ def debug_log(message: str) -> None:
         print(f"[DEBUG] {message}", file=sys.stderr)
 
 
-def get_chrome_variants_by_os() -> List[Tuple[str, str]]:
-    """Get Chrome variant paths for the current OS, ordered by preference.
+def get_chrome_variants() -> List[Tuple[str, str]]:
+    """Get Chrome variant paths for macOS, ordered by preference.
     
     Returns:
         List of (variant_name, relative_path) tuples
     """
-    system = platform.system()
-    
-    if system == "Darwin":  # macOS
-        return [
-            ("Google Chrome", "Library/Application Support/Google/Chrome"),
-            ("Chromium", "Library/Application Support/Chromium"),
-            ("Google Chrome Beta", "Library/Application Support/Google/Chrome Beta"),
-            ("Google Chrome Dev", "Library/Application Support/Google/Chrome Dev"),
-            ("Google Chrome Canary", "Library/Application Support/Google/Chrome Canary"),
-        ]
-    elif system == "Windows":
-        return [
-            ("Google Chrome", "Google/Chrome/User Data"),
-            ("Chromium", "Chromium/User Data"),
-            ("Google Chrome Beta", "Google/Chrome Beta/User Data"),
-            ("Google Chrome Dev", "Google/Chrome Dev/User Data"),
-            ("Google Chrome Canary", "Google/Chrome SxS/User Data"),
-        ]
-    elif system == "Linux":
-        return [
-            ("Google Chrome", ".config/google-chrome"),
-            ("Chromium", ".config/chromium"),
-            ("Google Chrome Beta", ".config/google-chrome-beta"),
-            ("Google Chrome Dev", ".config/google-chrome-unstable"),
-        ]
-    else:
-        raise OSError(f"Unsupported operating system: {system}")
+    return [
+        ("Google Chrome", "Library/Application Support/Google/Chrome"),
+        ("Chromium", "Library/Application Support/Chromium"),
+        ("Google Chrome Beta", "Library/Application Support/Google/Chrome Beta"),
+        ("Google Chrome Dev", "Library/Application Support/Google/Chrome Dev"),
+        ("Google Chrome Canary", "Library/Application Support/Google/Chrome Canary"),
+    ]
 
 
 def find_chrome_installations() -> List[Tuple[str, Path]]:
-    """Find all available Chrome installations.
+    """Find all available Chrome installations on macOS.
     
     Returns:
         List of (variant_name, chrome_directory) tuples for existing installations
     """
     installations = []
-    variants = get_chrome_variants_by_os()
+    variants = get_chrome_variants()
     
     for variant_name, relative_path in variants:
-        if platform.system() == "Windows":
-            chrome_dir = Path(os.environ["LOCALAPPDATA"]) / relative_path
-        else:
-            chrome_dir = Path.home() / relative_path
+        chrome_dir = Path.home() / relative_path
             
         if chrome_dir.exists():
             debug_log(f"Found {variant_name} at: {chrome_dir}")
@@ -482,6 +458,40 @@ def create_error_output(title: str, subtitle: str, debug_info: str = "") -> None
     print(script_filter.to_json())
 
 
+def get_all_bookmarks() -> List[Dict[str, Any]]:
+    """Get bookmarks from all available Chrome profiles.
+    
+    Returns:
+        Combined list of all bookmarks from all profiles
+    """
+    all_bookmarks = []
+    all_profiles = list_all_chrome_profiles()
+    
+    debug_log(f"Found {len(all_profiles)} Chrome profiles")
+    
+    for variant_name, profile_name, profile_path in all_profiles:
+        try:
+            bookmarks_file = Path(profile_path) / "Bookmarks"
+            profile_bookmarks = get_chrome_bookmarks_from_path(bookmarks_file)
+            debug_log(f"Found {len(profile_bookmarks)} bookmarks in {variant_name}/{profile_name}")
+            all_bookmarks.extend(profile_bookmarks)
+        except Exception as e:
+            debug_log(f"Error reading bookmarks from {variant_name}/{profile_name}: {e}")
+            continue
+    
+    # Remove duplicates based on URL
+    seen_urls = set()
+    unique_bookmarks = []
+    for bookmark in all_bookmarks:
+        url = bookmark.get("url", "")
+        if url and url not in seen_urls:
+            seen_urls.add(url)
+            unique_bookmarks.append(bookmark)
+    
+    debug_log(f"Total unique bookmarks: {len(unique_bookmarks)}")
+    return unique_bookmarks
+
+
 def main():
     # Get search query from command line
     query = sys.argv[1] if len(sys.argv) > 1 else ""
@@ -492,43 +502,24 @@ def main():
     debug_log(f"Search query: '{query}'")
 
     try:
-        # Find the best Chrome installation and profile
-        chrome_dir, profile = find_best_chrome_profile(preferred_profile)
-        debug_log(f"Selected Chrome directory: {chrome_dir}")
-        debug_log(f"Selected profile: {profile}")
-
-        # Get bookmarks and output in Alfred format
-        bookmarks = get_chrome_bookmarks(chrome_dir, profile)
-        debug_log(f"Found {len(bookmarks)} bookmarks")
+        # Get bookmarks from all profiles
+        bookmarks = get_all_bookmarks()
+        
+        if not bookmarks:
+            create_error_output(
+                title="No Bookmarks Found",
+                subtitle="No bookmarks found in any Chrome profile",
+                debug_info="Check if Chrome is installed and has bookmarks"
+            )
+            return
+            
+        debug_log(f"Found {len(bookmarks)} total bookmarks")
         output_alfred_format(bookmarks, query)
 
-    except ChromeNotInstalledError:
-        create_error_output(
-            title="Chrome Not Found",
-            subtitle="No Chrome installation detected. Install Chrome or Chromium.",
-            debug_info="Searched for: Google Chrome, Chromium, Chrome Beta, Chrome Dev"
-        )
-        
-    except ProfileNotFoundError:
-        installations = find_chrome_installations()
-        installation_names = [name for name, _ in installations]
-        create_error_output(
-            title="No Chrome Profiles Found",
-            subtitle=f"No valid profiles in {', '.join(installation_names)}",
-            debug_info=f"Searched installations: {installation_names}"
-        )
-        
-    except (BookmarksNotFoundError, BookmarksCorruptedError) as e:
-        create_error_output(
-            title="Bookmarks Error",
-            subtitle="Bookmarks file not found or corrupted",
-            debug_info=str(e)
-        )
-        
     except Exception as e:
         create_error_output(
-            title="Unexpected Error",
-            subtitle="An unexpected error occurred",
+            title="Error Reading Bookmarks",
+            subtitle="Failed to read Chrome bookmarks",
             debug_info=f"{type(e).__name__}: {e}"
         )
 
